@@ -61,30 +61,40 @@ public final class SkinCommand implements TabExecutor {
         player.sendMessage(Component.text("Загружаю скин...", NamedTextColor.GRAY));
 
         Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
-            Optional<SkinData> result;
+            Optional<SkinData> result = Optional.empty();
+            boolean failed = false;
             try {
                 result = service.fetch(nick);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                failed = true;
             } catch (Exception e) {
-                plugin.getLogger().warning("Ошибка загрузки скина " + nick + ": " + e.getMessage());
-                result = Optional.empty();
+                plugin.getLogger().warning("Ошибка загрузки скина " + nick + ": " + e);
+                failed = true;
+            }
+
+            if (reset) {
+                storage.remove(id);
+            } else if (result.isPresent()) {
+                storage.set(id, result.get());
             }
 
             Optional<SkinData> finalResult = result;
-            if (finalResult.isPresent()) {
-                if (reset) {
-                    storage.remove(id);
-                } else {
-                    storage.set(id, finalResult.get());
-                }
-            }
-
+            boolean finalFailed = failed;
             Bukkit.getScheduler().runTask(plugin, () -> {
                 Player online = Bukkit.getPlayer(id);
                 if (online == null) {
                     return;
                 }
+                if (finalFailed) {
+                    online.sendMessage(Component.text(
+                            "Не удалось связаться с Mojang, попробуйте позже.", NamedTextColor.RED));
+                    return;
+                }
                 if (finalResult.isEmpty()) {
-                    online.sendMessage(Component.text("Скин для ника " + nick + " не найден.", NamedTextColor.RED));
+                    online.sendMessage(Component.text(reset
+                            ? "Сохранённый скин удалён, но по вашему нику скин не найден (аккаунт Mojang с таким ником не существует)."
+                            : "Скин для ника " + nick + " не найден.", NamedTextColor.RED));
                     return;
                 }
                 apply(online, finalResult.get());
