@@ -7,24 +7,15 @@ import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.player.AsyncPlayerPreLoginEvent;
 
-import java.util.Optional;
-import java.util.logging.Logger;
-
 /**
- * Восстанавливает скин игрока при входе на сервер:
- * 1) если игрок ранее выбирал скин командой - ставим сохранённый;
- * 2) иначе, если у профиля нет текстур (offline-режим), берём скин по нику игрока.
+ * Paper: восстанавливает скин игрока при входе на сервер.
  */
 public final class SkinListener implements Listener {
 
-    private final SkinStorage storage;
-    private final SkinService service;
-    private final Logger logger;
+    private final SkinManager manager;
 
-    public SkinListener(SkinStorage storage, SkinService service, Logger logger) {
-        this.storage = storage;
-        this.service = service;
-        this.logger = logger;
+    public SkinListener(SkinManager manager) {
+        this.manager = manager;
     }
 
     @EventHandler(priority = EventPriority.HIGH)
@@ -34,26 +25,11 @@ public final class SkinListener implements Listener {
         }
 
         PlayerProfile profile = event.getPlayerProfile();
-        SkinData data = storage.get(event.getUniqueId()).orElse(null);
+        boolean hasTextures = profile.getProperties().stream().anyMatch(p -> "textures".equals(p.getName()));
 
-        if (data == null && !hasTextures(profile)) {
-            try {
-                Optional<SkinData> fetched = service.fetch(event.getName());
-                data = fetched.orElse(null);
-            } catch (Exception e) {
-                logger.warning("Не удалось получить скин для " + event.getName() + ": " + e.getMessage());
-            }
-        }
-
-        if (data == null) {
-            return;
-        }
-
-        profile.setProperty(new ProfileProperty("textures", data.value(), data.signature()));
-        event.setPlayerProfile(profile);
-    }
-
-    private boolean hasTextures(PlayerProfile profile) {
-        return profile.getProperties().stream().anyMatch(p -> "textures".equals(p.getName()));
+        manager.resolveForLogin(event.getUniqueId(), event.getName(), hasTextures).ifPresent(data -> {
+            profile.setProperty(new ProfileProperty("textures", data.value(), data.signature()));
+            event.setPlayerProfile(profile);
+        });
     }
 }

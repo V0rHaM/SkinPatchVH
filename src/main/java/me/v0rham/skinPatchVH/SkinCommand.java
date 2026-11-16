@@ -15,26 +15,21 @@ import org.jetbrains.annotations.NotNull;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
-import java.util.Optional;
 import java.util.UUID;
-import java.util.regex.Pattern;
 
 /**
+ * Paper:
  * /skin <ник>  - установить скин игрока с указанным ником
  * /skin reset  - вернуть скин по своему нику
  */
 public final class SkinCommand implements TabExecutor {
 
-    private static final Pattern NICK = Pattern.compile("^[A-Za-z0-9_]{1,16}$");
-
     private final JavaPlugin plugin;
-    private final SkinStorage storage;
-    private final SkinService service;
+    private final SkinManager manager;
 
-    public SkinCommand(JavaPlugin plugin, SkinStorage storage, SkinService service) {
+    public SkinCommand(JavaPlugin plugin, SkinManager manager) {
         this.plugin = plugin;
-        this.storage = storage;
-        this.service = service;
+        this.manager = manager;
     }
 
     @Override
@@ -52,7 +47,7 @@ public final class SkinCommand implements TabExecutor {
         boolean reset = args[0].equalsIgnoreCase("reset");
         String nick = reset ? player.getName() : args[0];
 
-        if (!NICK.matcher(nick).matches()) {
+        if (!SkinManager.isValidNick(nick)) {
             player.sendMessage(Component.text("Некорректный ник.", NamedTextColor.RED));
             return true;
         }
@@ -61,46 +56,26 @@ public final class SkinCommand implements TabExecutor {
         player.sendMessage(Component.text("Загружаю скин...", NamedTextColor.GRAY));
 
         Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
-            Optional<SkinData> result = Optional.empty();
-            boolean failed = false;
-            try {
-                result = service.fetch(nick);
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-                failed = true;
-            } catch (Exception e) {
-                plugin.getLogger().warning("Ошибка загрузки скина " + nick + ": " + e);
-                failed = true;
-            }
+            SkinManager.Result result = manager.change(id, nick, reset);
 
-            if (reset) {
-                storage.remove(id);
-            } else if (result.isPresent()) {
-                storage.set(id, result.get());
-            }
-
-            Optional<SkinData> finalResult = result;
-            boolean finalFailed = failed;
             Bukkit.getScheduler().runTask(plugin, () -> {
                 Player online = Bukkit.getPlayer(id);
                 if (online == null) {
                     return;
                 }
-                if (finalFailed) {
-                    online.sendMessage(Component.text(
+                switch (result.status()) {
+                    case ERROR -> online.sendMessage(Component.text(
                             "Не удалось связаться с Mojang, попробуйте позже.", NamedTextColor.RED));
-                    return;
-                }
-                if (finalResult.isEmpty()) {
-                    online.sendMessage(Component.text(reset
+                    case NOT_FOUND -> online.sendMessage(Component.text(reset
                             ? "Сохранённый скин удалён, но по вашему нику скин не найден (аккаунт Mojang с таким ником не существует)."
                             : "Скин для ника " + nick + " не найден.", NamedTextColor.RED));
-                    return;
+                    case OK -> {
+                        apply(online, result.data());
+                        online.sendMessage(Component.text(
+                                reset ? "Скин сброшен на ваш ник." : "Скин изменён на " + result.data().name() + ".",
+                                NamedTextColor.GREEN));
+                    }
                 }
-                apply(online, finalResult.get());
-                online.sendMessage(Component.text(
-                        reset ? "Скин сброшен на ваш ник." : "Скин изменён на " + finalResult.get().name() + ".",
-                        NamedTextColor.GREEN));
             });
         });
         return true;

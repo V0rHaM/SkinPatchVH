@@ -1,0 +1,7 @@
+{
+  "id": "skinpatchvh",
+  "name": "SkinPatchVH",
+  "version": "1.0.0",
+  "authors": ["V0rHaM"],
+  "main": "me.v0rham.skinPatchVH.velocity.VelocityMain"
+}
