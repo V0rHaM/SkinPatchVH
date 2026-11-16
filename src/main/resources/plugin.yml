@@ -3,3 +3,14 @@ version: '1.0.0'
 main: me.v0rham.skinPatchVH.Main
 api-version: '1.21'
 authors: [ V0rHaM ]
+
+commands:
+  skin:
+    description: Установить скин по нику
+    usage: /skin <ник> | reset
+    permission: skinpatchvh.use
+
+permissions:
+  skinpatchvh.use:
+    description: Доступ к команде /skin
+    default: true
