@@ -65,11 +65,10 @@ public final class VelocitySkinCommand implements SimpleCommand {
             switch (result.status()) {
                 case ERROR -> player.sendMessage(Component.text(
                         "Не удалось связаться с Mojang, попробуйте позже.", NamedTextColor.RED));
-                case NOT_FOUND -> player.sendMessage(Component.text(reset
-                        ? "Сохранённый скин удалён, но по вашему нику скин не найден (аккаунт Mojang с таким ником не существует)."
-                        : "Скин для ника " + nick + " не найден.", NamedTextColor.RED));
+                case NOT_FOUND -> player.sendMessage(Component.text(
+                        "Скин для ника " + nick + " не найден.", NamedTextColor.RED));
                 case OK -> player.sendMessage(Component.text(
-                        (reset ? "Скин сброшен на ваш ник" : "Скин сохранён: " + result.data().name())
+                        (reset ? "Скин сброшен" : "Скин сохранён: " + result.data().name())
                                 + ". Перезайдите на сервер, чтобы он применился.",
                         NamedTextColor.GREEN));
             }

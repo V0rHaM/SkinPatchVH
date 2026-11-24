@@ -66,13 +66,12 @@ public final class SkinCommand implements TabExecutor {
                 switch (result.status()) {
                     case ERROR -> online.sendMessage(Component.text(
                             "Не удалось связаться с Mojang, попробуйте позже.", NamedTextColor.RED));
-                    case NOT_FOUND -> online.sendMessage(Component.text(reset
-                            ? "Сохранённый скин удалён, но по вашему нику скин не найден (аккаунт Mojang с таким ником не существует)."
-                            : "Скин для ника " + nick + " не найден.", NamedTextColor.RED));
+                    case NOT_FOUND -> online.sendMessage(Component.text(
+                            "Скин для ника " + nick + " не найден.", NamedTextColor.RED));
                     case OK -> {
                         apply(online, result.data());
                         online.sendMessage(Component.text(
-                                reset ? "Скин сброшен на ваш ник." : "Скин изменён на " + result.data().name() + ".",
+                                reset ? "Скин сброшен." : "Скин изменён на " + result.data().name() + ".",
                                 NamedTextColor.GREEN));
                     }
                 }
@@ -81,9 +80,16 @@ public final class SkinCommand implements TabExecutor {
         return true;
     }
 
+    /**
+     * data == null означает сброс на скин по умолчанию (убираем текстуры).
+     */
     private void apply(Player player, SkinData data) {
         PlayerProfile profile = player.getPlayerProfile();
-        profile.setProperty(new ProfileProperty("textures", data.value(), data.signature()));
+        if (data == null) {
+            profile.removeProperty("textures");
+        } else {
+            profile.setProperty(new ProfileProperty("textures", data.value(), data.signature()));
+        }
         player.setPlayerProfile(profile);
     }
 

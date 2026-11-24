@@ -1,7 +1,7 @@
 name: SkinPatchVH
 version: '1.0.0'
 main: me.v0rham.skinPatchVH.Main
-api-version: '1.21'
+api-version: '1.18'
 authors: [ V0rHaM ]
 
 commands:

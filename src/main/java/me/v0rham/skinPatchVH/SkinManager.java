@@ -53,6 +53,8 @@ public final class SkinManager {
 
     /**
      * Смена скина игрока на скин с ником nick, либо сброс (reset = true).
+     * При сбросе отсутствие скина по нику не считается ошибкой: возвращается OK
+     * с data == null, что означает "скин по умолчанию".
      */
     public Result change(UUID id, String nick, boolean reset) {
         Optional<SkinData> data;
@@ -70,6 +72,9 @@ public final class SkinManager {
             storage.remove(id);
         } else {
             data.ifPresent(d -> storage.set(id, d));
+        }
+        if (data.isEmpty() && reset) {
+            return new Result(Status.OK, null);
         }
         return data.map(d -> new Result(Status.OK, d))
                 .orElseGet(() -> new Result(Status.NOT_FOUND, null));
