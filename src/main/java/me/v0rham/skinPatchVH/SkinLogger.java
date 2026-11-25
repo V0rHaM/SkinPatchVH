@@ -6,6 +6,8 @@ package me.v0rham.skinPatchVH;
  */
 public interface SkinLogger {
 
+    void info(String message);
+
     void warn(String message);
 
     void error(String message, Throwable throwable);

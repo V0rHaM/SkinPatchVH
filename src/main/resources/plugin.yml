@@ -1,5 +1,5 @@
 name: SkinPatchVH
-version: '1.0.0'
+version: '${project.version}'
 main: me.v0rham.skinPatchVH.Main
 api-version: '1.18'
 authors: [ V0rHaM ]
@@ -14,3 +14,6 @@ permissions:
   skinpatchvh.use:
     description: Доступ к команде /skin
     default: true
+  skinpatchvh.update:
+    description: Уведомления о новой версии плагина
+    default: op

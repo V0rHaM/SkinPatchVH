@@ -1,5 +1,7 @@
 package me.v0rham.skinPatchVH;
 
+import org.bstats.bukkit.Metrics;
+import org.bstats.charts.SimplePie;
 import org.bukkit.command.PluginCommand;
 import org.bukkit.plugin.java.JavaPlugin;
 
@@ -11,9 +13,16 @@ import java.util.logging.Level;
  */
 public final class Main extends JavaPlugin {
 
+    private static final long UPDATE_CHECK_PERIOD_TICKS = 20L * 60 * 60 * 12;
+
     @Override
     public void onEnable() {
         SkinLogger logger = new SkinLogger() {
+            @Override
+            public void info(String message) {
+                getLogger().info(message);
+            }
+
             @Override
             public void warn(String message) {
                 getLogger().warning(message);
@@ -25,9 +34,11 @@ public final class Main extends JavaPlugin {
             }
         };
         SkinManager manager = new SkinManager(getDataFolder().toPath(), logger);
+        SkinSettings settings = SkinSettings.load(getDataFolder().toPath(), logger);
 
+        final boolean paper = isPaper();
         SkinApplier applier;
-        if (isPaper()) {
+        if (paper) {
             getServer().getPluginManager().registerEvents(new SkinListener(manager), this);
             applier = new PaperSkinApplier();
         } else {
@@ -40,6 +51,28 @@ public final class Main extends JavaPlugin {
         PluginCommand command = getCommand("skin");
         if (command != null) {
             command.setExecutor(new SkinCommand(this, manager, applier));
+        }
+
+        if (PluginInfo.BSTATS_ID_BUKKIT > 0) {
+            Metrics metrics = new Metrics(this, PluginInfo.BSTATS_ID_BUKKIT);
+            metrics.addCustomChart(new SimplePie("platform", () -> paper ? "Paper" : "Spigot"));
+        }
+
+        String version = currentVersion();
+        if (settings.updateChecker() && PluginInfo.SPIGOT_RESOURCE_ID > 0 && version != null) {
+            UpdateChecker checker = new UpdateChecker(version, logger);
+            getServer().getPluginManager().registerEvents(new UpdateNotifyListener(checker), this);
+            getServer().getScheduler().runTaskTimerAsynchronously(
+                    this, checker::check, 0L, UPDATE_CHECK_PERIOD_TICKS);
+        }
+    }
+
+    private String currentVersion() {
+        try {
+            return getDescription().getVersion();
+        } catch (Throwable t) {
+            // метод может отсутствовать в очень новых версиях API
+            return null;
         }
     }
 
