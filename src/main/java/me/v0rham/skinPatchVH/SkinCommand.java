@@ -1,16 +1,12 @@
 package me.v0rham.skinPatchVH;
 
-import com.destroystokyo.paper.profile.PlayerProfile;
-import com.destroystokyo.paper.profile.ProfileProperty;
-import net.kyori.adventure.text.Component;
-import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.Bukkit;
+import org.bukkit.ChatColor;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
 import org.bukkit.command.TabExecutor;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.java.JavaPlugin;
-import org.jetbrains.annotations.NotNull;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -18,29 +14,32 @@ import java.util.Locale;
 import java.util.UUID;
 
 /**
- * Paper:
  * /skin <ник>  - установить скин игрока с указанным ником
  * /skin reset  - вернуть скин по своему нику
+ * Не использует Paper-специфичный API, поэтому работает и на Spigot.
  */
 public final class SkinCommand implements TabExecutor {
 
     private final JavaPlugin plugin;
     private final SkinManager manager;
+    private final SkinApplier applier;
 
-    public SkinCommand(JavaPlugin plugin, SkinManager manager) {
+    public SkinCommand(JavaPlugin plugin, SkinManager manager, SkinApplier applier) {
         this.plugin = plugin;
         this.manager = manager;
+        this.applier = applier;
     }
 
     @Override
-    public boolean onCommand(@NotNull CommandSender sender, @NotNull Command command,
-                             @NotNull String label, @NotNull String[] args) {
-        if (!(sender instanceof Player player)) {
-            sender.sendMessage(Component.text("Команда доступна только игрокам.", NamedTextColor.RED));
+    public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
+        if (!(sender instanceof Player)) {
+            sender.sendMessage(ChatColor.RED + "Команда доступна только игрокам.");
             return true;
         }
+        Player player = (Player) sender;
+
         if (args.length != 1) {
-            player.sendMessage(Component.text("Использование: /" + label + " <ник> | reset", NamedTextColor.YELLOW));
+            player.sendMessage(ChatColor.YELLOW + "Использование: /" + label + " <ник> | reset");
             return true;
         }
 
@@ -48,12 +47,12 @@ public final class SkinCommand implements TabExecutor {
         String nick = reset ? player.getName() : args[0];
 
         if (!SkinManager.isValidNick(nick)) {
-            player.sendMessage(Component.text("Некорректный ник.", NamedTextColor.RED));
+            player.sendMessage(ChatColor.RED + "Некорректный ник.");
             return true;
         }
 
         UUID id = player.getUniqueId();
-        player.sendMessage(Component.text("Загружаю скин...", NamedTextColor.GRAY));
+        player.sendMessage(ChatColor.GRAY + "Загружаю скин...");
 
         Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
             SkinManager.Result result = manager.change(id, nick, reset);
@@ -64,40 +63,40 @@ public final class SkinCommand implements TabExecutor {
                     return;
                 }
                 switch (result.status()) {
-                    case ERROR -> online.sendMessage(Component.text(
-                            "Не удалось связаться с Mojang, попробуйте позже.", NamedTextColor.RED));
-                    case NOT_FOUND -> online.sendMessage(Component.text(
-                            "Скин для ника " + nick + " не найден.", NamedTextColor.RED));
-                    case OK -> {
-                        apply(online, result.data());
-                        online.sendMessage(Component.text(
-                                reset ? "Скин сброшен." : "Скин изменён на " + result.data().name() + ".",
-                                NamedTextColor.GREEN));
-                    }
+                    case ERROR:
+                        online.sendMessage(ChatColor.RED + "Не удалось связаться с Mojang, попробуйте позже.");
+                        break;
+                    case NOT_FOUND:
+                        online.sendMessage(ChatColor.RED + "Скин для ника " + nick + " не найден.");
+                        break;
+                    case OK:
+                        reportApplied(online, result.data(), reset);
+                        break;
                 }
             });
         });
         return true;
     }
 
-    /**
-     * data == null означает сброс на скин по умолчанию (убираем текстуры).
-     */
-    private void apply(Player player, SkinData data) {
-        PlayerProfile profile = player.getPlayerProfile();
-        if (data == null) {
-            profile.removeProperty("textures");
-        } else {
-            profile.setProperty(new ProfileProperty("textures", data.value(), data.signature()));
+    private void reportApplied(Player player, SkinData data, boolean reset) {
+        String done = reset ? "Скин сброшен." : "Скин изменён на " + data.name() + ".";
+        switch (applier.apply(player, data)) {
+            case APPLIED:
+                player.sendMessage(ChatColor.GREEN + done);
+                break;
+            case RELOG_REQUIRED:
+                player.sendMessage(ChatColor.GREEN + done + " Перезайдите, чтобы увидеть новый скин.");
+                break;
+            case FAILED:
+                player.sendMessage(ChatColor.YELLOW + "Скин сохранён и будет применён при следующем входе на сервер.");
+                break;
         }
-        player.setPlayerProfile(profile);
     }
 
     @Override
-    public List<String> onTabComplete(@NotNull CommandSender sender, @NotNull Command command,
-                                      @NotNull String alias, @NotNull String[] args) {
+    public List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) {
         if (args.length != 1) {
-            return List.of();
+            return new ArrayList<>();
         }
         String prefix = args[0].toLowerCase(Locale.ROOT);
         List<String> out = new ArrayList<>();

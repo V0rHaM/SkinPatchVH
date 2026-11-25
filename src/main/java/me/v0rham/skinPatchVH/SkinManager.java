@@ -31,6 +31,10 @@ public final class SkinManager {
         return NICK.matcher(nick).matches();
     }
 
+    public boolean hasStoredSkin(UUID id) {
+        return storage.get(id).isPresent();
+    }
+
     /**
      * Скин, который нужно выдать игроку при входе: сохранённый выбор, либо
      * (если у профиля нет текстур, т.е. offline-режим) скин по нику игрока.
